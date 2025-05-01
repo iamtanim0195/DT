@@ -24,7 +24,7 @@ const Field: React.FC = () => {
         scene.fog = new THREE.FogExp2(0x87ceeb, 0.002);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(2,4,6);
+        camera.position.set(2, 4, 6);
         camera.lookAt(0, 0, 0);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -95,9 +95,27 @@ const Field: React.FC = () => {
             });
 
             const positions = groundGeometry.attributes.position.array as Float32Array;
+
+            const rowYPositions = [-10, 0, 10]; // rows in raw geometry BEFORE rotation
+            const rowWidth = 3;
+
             for (let i = 0; i < positions.length; i += 3) {
-                positions[i + 2] = (Math.random() - 0.5) * 0.2;
+                const x = positions[i];      // X-axis
+                const y = positions[i + 1];  // Y-axis
+                const z = positions[i + 3];  // Z-axis (height)
+
+                rowYPositions.forEach((rowY) => {
+                    if (Math.abs(y - rowY) < rowWidth) {
+                        const bump = 0.3 * Math.exp(-Math.pow((y - rowY) / rowWidth, 2));
+                        positions[i + 2] = z + bump;
+                    }
+                });
+
+                // optional noise:
+                positions[i + 2] += (Math.random() - 0.5) * 0.05;
             }
+
+
             groundGeometry.computeVertexNormals();
 
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -127,11 +145,9 @@ const Field: React.FC = () => {
 
             const plants: PlantModel[] = [];
             const plantTypes = [
-
-                { path: '/models/plants/tomato_plant.glb', scale: 0.05, density: 0.5 },
-
+                { path: '/models/plants/tomato_plant.glb', scale: 0.05, density: 0.5 }
             ];
-            
+
             const gltfLoader = new GLTFLoader();
             let loadedCount = 0;
 
@@ -158,10 +174,6 @@ const Field: React.FC = () => {
                             }
                         });
 
-                        if (path.includes('corn_plant')) {
-                            gltf.scene.rotation.y = Math.PI / 4;
-                        }
-
                         plants.push({
                             gltf,
                             density
@@ -180,24 +192,24 @@ const Field: React.FC = () => {
             const createField = () => {
                 const rows = 3;
                 const cols = 5;
-            
+
                 const rowSpacing = 10; // space between rows (z-axis)
                 const plantSpacing = 5; // space between plants in a row (x-axis)
-            
+
                 const baseX = -((cols - 1) * plantSpacing) / 2;
                 const baseZ = -((rows - 1) * rowSpacing) / 2;
-            
+
                 for (let r = 0; r < rows; r++) {
                     for (let c = 0; c < cols; c++) {
-                        const selectedPlant = plants[0]; // only tomato
-            
+                        const selectedPlant = plants[0];
+
                         const instance = selectedPlant.gltf.scene.clone(true);
                         const mixer = new THREE.AnimationMixer(instance);
                         selectedPlant.gltf.animations.forEach((clip: THREE.AnimationClip) =>
                             mixer.clipAction(clip).play()
                         );
                         mixers.push(mixer);
-            
+
                         const x = baseX + c * plantSpacing;
                         const z = baseZ + r * rowSpacing;
                         instance.position.set(x, 0, z);
@@ -205,7 +217,6 @@ const Field: React.FC = () => {
                     }
                 }
             };
-            
         });
 
         // Lights
