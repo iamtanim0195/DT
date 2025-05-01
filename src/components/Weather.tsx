@@ -1,7 +1,6 @@
-// components/Weather.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 interface WeatherData {
     location: string;
@@ -9,16 +8,21 @@ interface WeatherData {
     conditions: string;
     humidity: number;
     windSpeed: number;
+    windDeg: number;
     icon: string;
     feelsLike: number;
 }
 
-const Weather: React.FC<{ lat: number; lon: number }> = ({ lat, lon }) => {
+const Weather: React.FC<{ 
+    lat: number; 
+    lon: number;
+    onWeatherUpdate?: (weather: WeatherData) => void;
+}> = ({ lat, lon, onWeatherUpdate }) => {
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchWeather = async () => {
+    const fetchWeather = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -35,28 +39,34 @@ const Weather: React.FC<{ lat: number; lon: number }> = ({ lat, lon }) => {
 
             const data = await response.json();
 
-            setWeather({
+            const weatherData = {
                 location: data.name,
                 temperature: Math.round(data.main.temp),
                 conditions: data.weather[0].main,
                 humidity: data.main.humidity,
                 windSpeed: data.wind.speed,
+                windDeg: data.wind.deg,
                 icon: data.weather[0].icon,
                 feelsLike: Math.round(data.main.feels_like),
-            });
+            };
+
+            setWeather(weatherData);
+            if (onWeatherUpdate) {
+                onWeatherUpdate(weatherData);
+            }
         } catch (err) {
             console.error('Weather fetch failed:', err);
             setError(err instanceof Error ? err.message : 'Unknown error');
         } finally {
             setLoading(false);
         }
-    };
+    }, [lat, lon, onWeatherUpdate]);
 
     useEffect(() => {
         fetchWeather();
         const interval = setInterval(fetchWeather, 600000); // Refresh every 10 mins
         return () => clearInterval(interval);
-    }, [lat, lon]);
+    }, [fetchWeather]);
 
     if (loading) return (
         <div className="p-4 bg-white/10 backdrop-blur-sm rounded-xl animate-pulse">

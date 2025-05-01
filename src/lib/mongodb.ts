@@ -1,44 +1,72 @@
-import mongoose from 'mongoose';
+// lib/mongodb.ts
+import mongoose, { Mongoose } from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI || '';
+// 1. Define proper types for the cached connection
+interface MongooseCache {
+    conn: Mongoose | null;
+    promise: Promise<Mongoose> | null;
+}
 
+// 2. Extend the global namespace with type safety
+declare global {
+    namespace NodeJS {
+        interface Global {
+            mongoose: MongooseCache;
+        }
+    }
+}
+
+// 3. Get environment variable with strict type checking
+const MONGODB_URI: string | undefined = process.env.MONGODB_URI;
+
+// 4. Environment validation with proper type guard
 if (!MONGODB_URI) {
     throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
 }
 
-/**
- * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections growing exponentially
- * during API Route usage.
- */
-let cached = (global as any).mongoose;
+// 5. Initialize cache with proper typing
+const globalWithMongoose = global as typeof global & {
+    mongoose: MongooseCache;
+};
 
-if (!cached) {
-    cached = (global as any).mongoose = { conn: null, promise: null };
-}
+let cached: MongooseCache = globalWithMongoose.mongoose || { conn: null, promise: null };
 
-async function dbConnect() {
+// 6. Main connection function with full type safety
+async function dbConnect(): Promise<Mongoose> {
     if (cached.conn) {
         return cached.conn;
     }
 
     if (!cached.promise) {
-        const opts = {
+        const opts: mongoose.ConnectOptions = {
             bufferCommands: false,
+            serverSelectionTimeoutMS: 10000,
+            socketTimeoutMS: 45000,
         };
 
-        cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-            console.log('✅ MongoDB connected successfully');
-            return mongoose;
-        });
+        cached.promise = mongoose.connect(MONGODB_URI!, opts)
+            .then((mongooseInstance: Mongoose) => {
+                console.log('✅ MongoDB connected successfully');
+                return mongooseInstance;
+            })
+            .catch((error: unknown) => {
+                console.error('❌ MongoDB connection failed', error);
+                throw new Error(
+                    error instanceof Error
+                        ? `Database connection failed: ${error.message}`
+                        : 'Database connection failed'
+                );
+            });
     }
 
     try {
         cached.conn = await cached.promise;
-    } catch (e) {
+    } catch (error: unknown) {
         cached.promise = null;
-        console.error('❌ MongoDB connection failed', e);
-        throw e;
+        if (error instanceof Error) {
+            throw error;
+        }
+        throw new Error('Unknown database connection error');
     }
 
     return cached.conn;

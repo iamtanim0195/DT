@@ -6,12 +6,14 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Weather from './Weather';
+import { WeatherEffects } from './WeatherEffects';
 
 interface PlantModel {
     gltf: THREE.Group;
     density: number;
     scale: number;
     animations: THREE.AnimationClip[];
+    name: string;
 }
 
 interface TextureMaps {
@@ -30,16 +32,31 @@ const Field: React.FC = () => {
     const [progress, setProgress] = useState(0);
     const [coordinates, setCoordinates] = useState<{ lat: number; lon: number } | null>(null);
     const [loadingMessage, setLoadingMessage] = useState('Loading assets...');
+    const weatherEffectsRef = useRef<WeatherEffects | null>(null);
+
+    const handleWeatherUpdate = useCallback((weather: any) => {
+        if (weatherEffectsRef.current) {
+            weatherEffectsRef.current.updateWeather({
+                conditions: weather.conditions,
+                temperature: weather.temperature,
+                windSpeed: weather.windSpeed,
+                humidity: weather.humidity,
+                windDirection: weather.windDeg
+            });
+        }
+    }, []);
 
     const cleanupScene = useCallback((renderer: THREE.WebGLRenderer | null) => {
         if (renderer && mountRef.current) {
             mountRef.current.removeChild(renderer.domElement);
             renderer.dispose();
         }
+        if (weatherEffectsRef.current) {
+            weatherEffectsRef.current.dispose();
+        }
     }, []);
 
     useEffect(() => {
-        // Get user's location
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
@@ -50,26 +67,33 @@ const Field: React.FC = () => {
                 },
                 (error) => {
                     console.error('Geolocation error:', error);
-                    setCoordinates({ lat: 51.5074, lon: -0.1278 }); // London as fallback
+                    setCoordinates({ lat: 51.5074, lon: -0.1278 });
                 }
             );
         } else {
-            setCoordinates({ lat: 51.5074, lon: -0.1278 }); // London as fallback
+            setCoordinates({ lat: 51.5074, lon: -0.1278 });
         }
 
         if (!mountRef.current) return;
 
-        // Scene setup
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87ceeb);
         scene.fog = new THREE.FogExp2(0x87ceeb, 0.002);
 
-        // Camera setup
+        // Add ground reference for positioning
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(100, 100),
+            new THREE.MeshBasicMaterial({ visible: false })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        scene.add(ground);
+
+        weatherEffectsRef.current = new WeatherEffects(scene);
+
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         camera.position.set(25, 10, 8);
         camera.lookAt(0, 0, 0);
 
-        // Renderer setup
         const renderer = new THREE.WebGLRenderer({
             antialias: true,
             powerPreference: "high-performance"
@@ -81,7 +105,6 @@ const Field: React.FC = () => {
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         mountRef.current.appendChild(renderer.domElement);
 
-        // Controls setup
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
@@ -89,7 +112,6 @@ const Field: React.FC = () => {
         controls.target.set(0, 0, 0);
         controls.update();
 
-        // Loaders setup
         const loadingManager = new THREE.LoadingManager();
         loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
             setProgress(Math.round((itemsLoaded / itemsTotal) * 100));
@@ -101,7 +123,6 @@ const Field: React.FC = () => {
         const clock = new THREE.Clock();
         const mixers: THREE.AnimationMixer[] = [];
 
-        // Load textures
         const loadTextures = async (): Promise<TextureMaps> => {
             try {
                 setLoadingMessage('Loading textures...');
@@ -150,7 +171,6 @@ const Field: React.FC = () => {
             }
         };
 
-        // Create terrain
         const createTerrain = (textures: TextureMaps) => {
             setLoadingMessage('Creating terrain...');
 
@@ -198,7 +218,6 @@ const Field: React.FC = () => {
             return ground;
         };
 
-        // Create grass
         const createGrass = (textures: TextureMaps) => {
             setLoadingMessage('Creating grass...');
 
@@ -235,7 +254,6 @@ const Field: React.FC = () => {
             return grassGroup;
         };
 
-        // Load plant models
         const loadPlantModels = async (): Promise<PlantModel[]> => {
             setLoadingMessage('Loading plants...');
 
@@ -283,7 +301,6 @@ const Field: React.FC = () => {
             return results.filter(Boolean) as PlantModel[];
         };
 
-        // Create plant field
         const createPlantField = (plants: PlantModel[]) => {
             if (plants.length === 0) return;
 
@@ -320,13 +337,10 @@ const Field: React.FC = () => {
             }
         };
 
-        // Setup lighting
         const setupLighting = () => {
-            // Ambient light
             const ambient = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambient);
 
-            // Main directional light (sun)
             const directionalLight = new THREE.DirectionalLight(0xfff4e6, 0.8);
             directionalLight.position.set(20, 30, 10);
             directionalLight.castShadow = true;
@@ -341,13 +355,11 @@ const Field: React.FC = () => {
             directionalLight.shadow.bias = -0.001;
             scene.add(directionalLight);
 
-            // Fill light
             const fillLight = new THREE.DirectionalLight(0xccf0ff, 0.3);
             fillLight.position.set(-10, 20, -5);
             scene.add(fillLight);
         };
 
-        // Main initialization
         const initializeScene = async () => {
             try {
                 setupLighting();
@@ -366,18 +378,20 @@ const Field: React.FC = () => {
             }
         };
 
-        // Animation loop
         const animate = () => {
             requestAnimationFrame(animate);
 
             const delta = clock.getDelta();
             mixers.forEach(mixer => mixer.update(delta));
 
+            if (weatherEffectsRef.current) {
+                weatherEffectsRef.current.animate(delta);
+            }
+
             controls.update();
             renderer.render(scene, camera);
         };
 
-        // Handle window resize
         const handleResize = () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -388,7 +402,6 @@ const Field: React.FC = () => {
         initializeScene();
         animate();
 
-        // Cleanup
         return () => {
             window.removeEventListener('resize', handleResize);
             cleanupScene(renderer);
@@ -419,7 +432,7 @@ const Field: React.FC = () => {
 
             {coordinates && (
                 <div className="absolute top-5 right-5 z-10">
-                    <Weather lat={coordinates.lat} lon={coordinates.lon} />
+                    <Weather lat={coordinates.lat} lon={coordinates.lon} onWeatherUpdate={handleWeatherUpdate} />
                 </div>
             )}
 
