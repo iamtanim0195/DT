@@ -13,11 +13,12 @@ interface WeatherData {
     feelsLike: number;
 }
 
-const Weather: React.FC<{ 
-    lat: number; 
-    lon: number;
+const Weather: React.FC<{
+    defaultCity?: string;
     onWeatherUpdate?: (weather: WeatherData) => void;
-}> = ({ lat, lon, onWeatherUpdate }) => {
+}> = ({ defaultCity = "Dhaka", onWeatherUpdate }) => {
+    const [city, setCity] = useState(defaultCity);
+    const [inputCity, setInputCity] = useState(defaultCity);
     const [weather, setWeather] = useState<WeatherData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -28,12 +29,12 @@ const Weather: React.FC<{
             setError(null);
 
             const response = await fetch(
-                `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
+                `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.NEXT_PUBLIC_WEATHER_API_KEY}&units=metric`
             );
 
             if (!response.ok) {
-                throw new Error(response.status === 401
-                    ? 'Invalid API key'
+                throw new Error(response.status === 404
+                    ? 'City not found'
                     : 'Weather data unavailable');
             }
 
@@ -60,7 +61,7 @@ const Weather: React.FC<{
         } finally {
             setLoading(false);
         }
-    }, [lat, lon, onWeatherUpdate]);
+    }, [city, onWeatherUpdate]);
 
     useEffect(() => {
         fetchWeather();
@@ -68,58 +69,74 @@ const Weather: React.FC<{
         return () => clearInterval(interval);
     }, [fetchWeather]);
 
-    if (loading) return (
-        <div className="p-4 bg-white/10 backdrop-blur-sm rounded-xl animate-pulse">
-            <div className="h-6 w-32 mb-2 bg-gray-300/20 rounded"></div>
-            <div className="h-4 w-24 bg-gray-300/20 rounded"></div>
-        </div>
-    );
-
-    if (error) return (
-        <div className="p-4 bg-red-500/10 backdrop-blur-sm rounded-xl text-red-300">
-            <p>⚠️ {error}</p>
-            <button
-                onClick={fetchWeather}
-                className="mt-2 px-3 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 rounded transition"
-            >
-                Retry
-            </button>
-        </div>
-    );
-
-    if (!weather) return null;
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            setCity(inputCity);
+        }
+    };
 
     return (
         <div className="p-4 bg-white/10 backdrop-blur-sm rounded-xl text-white shadow-lg">
-            <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold">{weather.location}</h3>
-                <span className="text-sm opacity-80">
-                    {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-            </div>
+            <input
+                type="text"
+                value={inputCity}
+                onChange={(e) => setInputCity(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder="Enter city name"
+                className="w-full mb-4 px-3 py-2 rounded bg-white/20 text-white placeholder-white/60 focus:outline-none"
+            />
 
-            <div className="flex items-center gap-4">
-                <img
-                    src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`}
-                    alt={weather.conditions}
-                    className="w-16 h-16"
-                />
+            {loading && (
+                <div className="animate-pulse">
+                    <div className="h-6 w-32 mb-2 bg-gray-300/20 rounded"></div>
+                    <div className="h-4 w-24 bg-gray-300/20 rounded"></div>
+                </div>
+            )}
 
-                <div>
-                    <div className="text-3xl font-bold">{weather.temperature}°C</div>
-                    <div className="text-sm opacity-80">Feels like {weather.feelsLike}°C</div>
+            {error && (
+                <div className="bg-red-500/10 text-red-300 p-3 rounded mb-2">
+                    ⚠️ {error}
+                    <button
+                        onClick={fetchWeather}
+                        className="block mt-2 px-3 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 rounded transition"
+                    >
+                        Retry
+                    </button>
                 </div>
-            </div>
+            )}
 
-            <div className="mt-3 pt-3 border-t border-white/10">
-                <div className="flex justify-between text-sm">
-                    <span>💧 {weather.humidity}% Humidity</span>
-                    <span>🌬️ {weather.windSpeed} m/s Wind</span>
-                </div>
-                <div className="mt-1 text-center capitalize text-sm opacity-90">
-                    {weather.conditions}
-                </div>
-            </div>
+            {weather && !loading && !error && (
+                <>
+                    <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-lg font-semibold">{weather.location}</h3>
+                        <span className="text-sm opacity-80">
+                            {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <img
+                            src={`https://openweathermap.org/img/wn/${weather.icon}@2x.png`}
+                            alt={weather.conditions}
+                            className="w-16 h-16"
+                        />
+                        <div>
+                            <div className="text-3xl font-bold">{weather.temperature}°C</div>
+                            <div className="text-sm opacity-80">Feels like {weather.feelsLike}°C</div>
+                        </div>
+                    </div>
+
+                    <div className="mt-3 pt-3 border-t border-white/10">
+                        <div className="flex justify-between text-sm">
+                            <span>💧 {weather.humidity}% Humidity</span>
+                            <span>🌬️ {weather.windSpeed} m/s Wind</span>
+                        </div>
+                        <div className="mt-1 text-center capitalize text-sm opacity-90">
+                            {weather.conditions}
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 };

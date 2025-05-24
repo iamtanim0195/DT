@@ -54,11 +54,11 @@ export class WeatherEffects {
         const group = new THREE.Group();
         
         // Compass base
-        const compassGeometry = new THREE.CircleGeometry(3, 32);
+        const compassGeometry = new THREE.CircleGeometry(4, 32);
         const compassMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0x333333,
+            color: 0x222222,
             transparent: true,
-            opacity: 0.7,
+            opacity: 0.5,
             side: THREE.DoubleSide
         });
         const compass = new THREE.Mesh(compassGeometry, compassMaterial);
@@ -69,47 +69,50 @@ export class WeatherEffects {
         // Direction labels
         const createLabel = (text: string, position: THREE.Vector3) => {
             const canvas = document.createElement('canvas');
-            canvas.width = 128;
-            canvas.height = 64;
+            canvas.width = 256;
+            canvas.height = 128;
             const context = canvas.getContext('2d')!;
-            context.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            context.font = 'Bold 40px Arial';
+            context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            context.font = 'Bold 60px Arial';
             context.textAlign = 'center';
             context.textBaseline = 'middle';
-            context.fillText(text, 64, 32);
+            context.fillText(text, 128, 64);
             
             const texture = new THREE.CanvasTexture(canvas);
             const material = new THREE.SpriteMaterial({ map: texture });
             const sprite = new THREE.Sprite(material);
-            sprite.scale.set(2, 1, 1);
+            sprite.scale.set(3, 1.5, 1);
             sprite.position.copy(position);
             group.add(sprite);
         };
         
-        createLabel('N', new THREE.Vector3(0, 0.1, 3.5));
-        createLabel('E', new THREE.Vector3(3.5, 0.1, 0));
-        createLabel('S', new THREE.Vector3(0, 0.1, -3.5));
-        createLabel('W', new THREE.Vector3(-3.5, 0.1, 0));
+        createLabel('N', new THREE.Vector3(0, 0.1, 4.5));
+        createLabel('E', new THREE.Vector3(4.5, 0.1, 0));
+        createLabel('S', new THREE.Vector3(0, 0.1, -4.5));
+        createLabel('W', new THREE.Vector3(-4.5, 0.1, 0));
         
         // Wind direction arrow
         const arrowShape = new THREE.Shape();
         arrowShape.moveTo(0, 0);
-        arrowShape.lineTo(-0.5, 2);
-        arrowShape.lineTo(0, 1.8);
-        arrowShape.lineTo(0.5, 2);
+        arrowShape.lineTo(-0.8, 3);
+        arrowShape.lineTo(0, 2.6);
+        arrowShape.lineTo(0.8, 3);
         arrowShape.lineTo(0, 0);
         
         const arrowGeometry = new THREE.ShapeGeometry(arrowShape);
         const arrowMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0xff0000,
+            color: 0xff3333,
             side: THREE.DoubleSide
         });
         this.windArrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
         this.windArrow.rotation.x = Math.PI / 2;
-        this.windArrow.position.set(0, 0.11, 0);
+        this.windArrow.position.set(0, 0.12, 0);
         group.add(this.windArrow);
         
-        group.position.set(40, 0, 40);
+        // Position in bottom-left corner and flip to face camera
+        group.position.set(-40, 0, -40);
+        group.rotation.y = Math.PI;
+        
         this.scene.add(group);
         this.windIndicator = group;
     }
