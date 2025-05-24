@@ -7,6 +7,8 @@ import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import Weather from './Weather';
 import { WeatherEffects } from './WeatherEffects';
+import { div } from 'three/tsl';
+import SoilMetrics from './SoilMetrics';
 
 interface PlantModel {
     gltf: THREE.Group;
@@ -431,9 +433,13 @@ const Field: React.FC = () => {
             )}
 
             {coordinates && (
-                <div className="absolute top-5 right-5 z-10">
+                <div><div className="absolute top-5 right-5 z-10">
                     <Weather lat={coordinates.lat} lon={coordinates.lon} onWeatherUpdate={handleWeatherUpdate} />
                 </div>
+                <div  className="absolute top-5 left-5 z-10">
+                    <SoilMetrics />
+                </div>
+                </div> 
             )}
 
             <div ref={mountRef} className="w-full h-full" />
