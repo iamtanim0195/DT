@@ -261,10 +261,10 @@ const Field: React.FC = () => {
 
             const plantTypes = [
                 {
-                    path: '/models/plants/tomato_plant.glb',
-                    scale: 0.05,
+                    path: '/models/plants/corn_plant.glb',
+                    scale: 3.5,
                     density: 0.5,
-                    name: 'Tomato'
+                    name: 'Corn'
                 }
             ];
 
@@ -436,10 +436,10 @@ const Field: React.FC = () => {
                 <div><div className="absolute top-5 right-5 z-10">
                     <Weather lat={coordinates.lat} lon={coordinates.lon} onWeatherUpdate={handleWeatherUpdate} />
                 </div>
-                <div  className="absolute top-5 left-5 z-10">
-                    <SoilMetrics />
+                    <div className="absolute top-5 left-5 z-10">
+                        <SoilMetrics />
+                    </div>
                 </div>
-                </div> 
             )}
 
             <div ref={mountRef} className="w-full h-full" />
