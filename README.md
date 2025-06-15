@@ -24,9 +24,8 @@ An interactive digital twin of a corn plant that visually reflects live environm
 - **Frontend:** React.js, Next.js  
 - **3D Visualization:** Three.js  
 - **APIs:** OpenWeather API, SoilGrids API  
-- **Database:** Firebase / MongoDB  
-- **State Management & Logic:** Zustand / Context API (if used)  
-- **Hosting:** Vercel / Netlify (mention what you used)
+- **Database:** MongoDB    
+- **Hosting:** Vercel (mention what you used)
 
 ## 📈 Future Plans
 
